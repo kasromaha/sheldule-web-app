@@ -34,6 +34,8 @@
       <div class="grid days"></div>
     </div>
   </div>
+  <!-- Fallback HTML submit button -->
+  <button id="submit" class="button">Отправить</button>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const tg = window.Telegram?.WebApp;
@@ -79,10 +81,27 @@
       }
       updateButton();
 
-      tg.onEvent('mainButtonClicked', () => {
-        const dates = Array.from(document.querySelectorAll('.day.selected')).map(el=>el.dataset.date);
+      function sendSelectedDates() {
+        const dates = Array.from(document.querySelectorAll('.day.selected')).map(el => el.dataset.date);
+        if (dates.length === 0) {
+          alert('Выберите хотя бы одну дату.');
+          return;
+        }
         tg.sendData(JSON.stringify(dates));
-      });
+        if (typeof tg.close === 'function') tg.close();
+      }
+      // Native Telegram MainButton click
+      if (tg.MainButton && typeof tg.MainButton.onClick === 'function') {
+        tg.MainButton.onClick(sendSelectedDates);
+      } else if (typeof tg.onEvent === 'function') {
+        // fallback for older SDK
+        tg.onEvent('mainButtonClicked', sendSelectedDates);
+      }
+      // Fallback HTML button click
+      const submitBtn = document.getElementById('submit');
+      if (submitBtn) {
+        submitBtn.addEventListener('click', sendSelectedDates);
+      }
     });
   </script>
 </body>
