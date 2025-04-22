@@ -16,12 +16,14 @@
     .day.disabled { color: #eee; cursor: default; }
     .day.selected { background: #4caf50; color: white; }
     .button { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; }
+    .error { color: red; text-align: center; margin: 10px; }
   </style>
   <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <h2>Выберите даты смен</h2>
+  <div id="error" class="error"></div>
   <div class="calendar-container">
     <div class="calendar" id="calCurrent">
       <h3></h3>
@@ -34,74 +36,139 @@
       <div class="grid days"></div>
     </div>
   </div>
-  <!-- Fallback HTML submit button -->
   <button id="submit" class="button">Отправить</button>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const tg = window.Telegram?.WebApp;
-      if (!tg) {
-        console.error('Telegram WebApp SDK not available');
-        return;
-      }
-      tg.ready();
-      tg.expand();
-      tg.MainButton.setText('Отправить');
-      tg.MainButton.show();
+    let tg = null;
+    let selectedDates = new Set();
 
-      // Generate calendars
-      const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-      const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-      function generateCalendar(id, year, month) {
-        const cal = document.getElementById(id);
-        cal.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
-        const wd = cal.querySelector('.weekdays'); wd.innerHTML = '';
-        const daysGrid = cal.querySelector('.days'); daysGrid.innerHTML = '';
-        weekdays.forEach(d => { const el = document.createElement('div'); el.className='weekday'; el.textContent=d; wd.appendChild(el); });
-        const firstDay = new Date(year, month, 1).getDay();
-        let offset = (firstDay + 6) % 7;
-        for (let i = 0; i < offset; i++) { const el=document.createElement('div'); el.className='day disabled'; daysGrid.appendChild(el); }
-        const daysCount = new Date(year, month+1, 0).getDate();
-        for (let d =1; d <= daysCount; d++) {
-          const el=document.createElement('div');
-          el.className='day'; el.textContent=d;
-          el.dataset.date=new Date(year, month, d).toISOString().slice(0,10);
-          el.onclick = () => { if(!el.classList.contains('disabled')) el.classList.toggle('selected'); updateButton(); };
-          daysGrid.appendChild(el);
+    function showError(message) {
+      const errorDiv = document.getElementById('error');
+      errorDiv.textContent = message;
+      setTimeout(() => errorDiv.textContent = '', 3000);
+    }
+
+    function initTelegramWebApp() {
+      try {
+        tg = window.Telegram?.WebApp;
+        if (!tg) {
+          throw new Error('Telegram WebApp SDK not available');
         }
+        
+        tg.ready();
+        tg.expand();
+        
+        // Initialize MainButton
+        if (tg.MainButton) {
+          tg.MainButton.setText('Отправить');
+          tg.MainButton.show();
+          tg.MainButton.onClick(sendSelectedDates);
+        }
+        
+        // Initialize BackButton
+        if (tg.BackButton) {
+          tg.BackButton.onClick(() => {
+            if (typeof tg.close === 'function') {
+              tg.close();
+            }
+          });
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('Error initializing Telegram WebApp:', error);
+        showError('Ошибка инициализации приложения');
+        return false;
       }
-      const today=new Date();
-      generateCalendar('calCurrent', today.getFullYear(), today.getMonth());
-      const nextMonth = today.getMonth() === 11 ? 0 : today.getMonth()+1;
-      const nextYear = today.getMonth() === 11 ? today.getFullYear()+1 : today.getFullYear();
-      generateCalendar('calNext', nextYear, nextMonth);
+    }
 
-      function updateButton() {
-        const has = document.querySelectorAll('.day.selected').length>0;
-        tg.MainButton[has?'enable':'disable']();
-      }
-      updateButton();
-
-      function sendSelectedDates() {
-        const dates = Array.from(document.querySelectorAll('.day.selected')).map(el => el.dataset.date);
-        if (dates.length === 0) {
-          alert('Выберите хотя бы одну дату.');
+    function sendSelectedDates() {
+      try {
+        if (selectedDates.size === 0) {
+          showError('Выберите хотя бы одну дату');
           return;
         }
-        tg.sendData(JSON.stringify(dates));
-        if (typeof tg.close === 'function') tg.close();
+
+        const dates = Array.from(selectedDates).sort();
+        const data = JSON.stringify(dates);
+        
+        if (tg && typeof tg.sendData === 'function') {
+          tg.sendData(data);
+          if (typeof tg.close === 'function') {
+            tg.close();
+          }
+        } else {
+          throw new Error('sendData not available');
+        }
+      } catch (error) {
+        console.error('Error sending dates:', error);
+        showError('Ошибка отправки данных');
       }
-      // Native Telegram MainButton click
-      if (tg.MainButton && typeof tg.MainButton.onClick === 'function') {
-        tg.MainButton.onClick(sendSelectedDates);
-      } else if (typeof tg.onEvent === 'function') {
-        // fallback for older SDK
-        tg.onEvent('mainButtonClicked', sendSelectedDates);
+    }
+
+    // Calendar generation code
+    const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    
+    function generateCalendar(container, date) {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      
+      container.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
+      
+      const weekdaysGrid = container.querySelector('.weekdays');
+      weekdaysGrid.innerHTML = weekdays.map(day => `<div class="weekday">${day}</div>`).join('');
+      
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const daysGrid = container.querySelector('.days');
+      daysGrid.innerHTML = '';
+      
+      // Add empty cells for days before the first day of the month
+      for (let i = 0; i < (firstDay.getDay() || 7) - 1; i++) {
+        daysGrid.appendChild(document.createElement('div'));
       }
-      // Fallback HTML button click
-      const submitBtn = document.getElementById('submit');
-      if (submitBtn) {
-        submitBtn.addEventListener('click', sendSelectedDates);
+      
+      // Add days of the month
+      for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'day';
+        dayElement.textContent = day;
+        
+        const currentDate = new Date(year, month, day);
+        const dateString = currentDate.toISOString().split('T')[0];
+        dayElement.dataset.date = dateString;
+        
+        if (currentDate < new Date().setHours(0,0,0,0)) {
+          dayElement.classList.add('disabled');
+        } else {
+          dayElement.addEventListener('click', () => {
+            if (selectedDates.has(dateString)) {
+              selectedDates.delete(dateString);
+              dayElement.classList.remove('selected');
+            } else {
+              selectedDates.add(dateString);
+              dayElement.classList.add('selected');
+            }
+          });
+        }
+        
+        daysGrid.appendChild(dayElement);
       }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!initTelegramWebApp()) {
+        return;
+      }
+
+      const today = new Date();
+      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      
+      generateCalendar(document.getElementById('calCurrent'), today);
+      generateCalendar(document.getElementById('calNext'), nextMonth);
+      
+      // Fallback button
+      document.getElementById('submit').addEventListener('click', sendSelectedDates);
     });
   </script>
 </body>
