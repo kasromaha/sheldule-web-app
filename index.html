@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://telegram.org; script-src 'self' https://telegram.org 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
   <title>Выбор дат смен</title>
   <style>
     body { font-family: sans-serif; background-color: #f0f0f0; margin: 20px; }
@@ -19,8 +22,8 @@
     .error { color: red; text-align: center; margin: 10px; }
     .debug { font-size: 12px; color: #666; margin: 10px; text-align: center; }
   </style>
-  <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Telegram Web App SDK с атрибутами для cookies -->
+  <script src="https://telegram.org/js/telegram-web-app.js" crossorigin="anonymous" integrity="sha384-"></script>
 </head>
 <body>
   <h2>Выберите даты смен</h2>
@@ -40,6 +43,18 @@
   </div>
   <button id="submit" class="button">Отправить</button>
   <script>
+    // Проверяем поддержку SameSite cookies
+    function checkSameSiteSupport() {
+      debugLog('Проверка поддержки SameSite cookies');
+      try {
+        document.cookie = "test=1; SameSite=Strict; Secure";
+        return document.cookie.indexOf("test=") !== -1;
+      } catch (e) {
+        debugLog('Ошибка при проверке SameSite cookies: ' + e.message);
+        return false;
+      }
+    }
+
     let tg = null;
     let selectedDates = new Set();
     let isDebugMode = true; // Включить для отладки
