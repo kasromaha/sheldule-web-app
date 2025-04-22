@@ -4,34 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Выбор дат смен</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    h2 { text-align: center; }
+    .calendar-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+    .calendar { width: 300px; }
+    .calendar h3 { text-align: center; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+    .weekday { font-weight: bold; text-align: center; }
+    .day { padding: 10px; text-align: center; border: 1px solid #ccc; cursor: pointer; }
+    .day.disabled { color: #eee; cursor: default; }
+    .day.selected { background: #4caf50; color: white; }
+    .button { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; }
+  </style>
 </head>
 <body>
   <h2>Выберите даты смен</h2>
-  <input id="datepicker" type="text" placeholder="Нажмите для выбора дат" style="width:100%;padding:0.5em;font-size:1em;" readonly>
-  <button id="submit" style="margin-top:1em;padding:0.5em 1em;font-size:1em;">Отправить</button>
-
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
+  <div class="calendar-container">
+    <div class="calendar" id="calCurrent">
+      <h3></h3>
+      <div class="grid weekdays"></div>
+      <div class="grid days"></div>
+    </div>
+    <div class="calendar" id="calNext">
+      <h3></h3>
+      <div class="grid weekdays"></div>
+      <div class="grid days"></div>
+    </div>
+  </div>
+  <button id="submit" class="button">Отправить</button>
   <script async src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    // Инициализация Telegram Web App
     const tg = window.Telegram.WebApp;
     tg.expand();
+    const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-    // Настройка flatpickr для множественного выбора дат
-    const fp = flatpickr("#datepicker", {
-      mode: "multiple",
-      dateFormat: "Y-m-d"
-    });
-
-    document.getElementById("submit").addEventListener("click", () => {
-      const dates = fp.selectedDates.map(d => d.toISOString().slice(0,10));
-      if (!dates.length) {
-        alert("Выберите хотя бы одну дату.");
-        return;
+    function generateCalendar(id, year, month) {
+      const cal = document.getElementById(id);
+      cal.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
+      const wd = cal.querySelector('.weekdays'); wd.innerHTML = '';
+      const daysGrid = cal.querySelector('.days'); daysGrid.innerHTML = '';
+      weekdays.forEach(d => { const el = document.createElement('div'); el.className = 'weekday'; el.textContent = d; wd.appendChild(el); });
+      const firstDay = new Date(year, month, 1).getDay();
+      let offset = (firstDay + 6) % 7; // shift to Monday=0
+      for (let i = 0; i < offset; i++) {
+        const el = document.createElement('div'); el.className = 'day disabled'; daysGrid.appendChild(el);
       }
-      tg.sendData(JSON.stringify(dates));
+      const daysCount = new Date(year, month + 1, 0).getDate();
+      for (let d = 1; d <= daysCount; d++) {
+        const el = document.createElement('div');
+        const iso = new Date(year, month, d).toISOString().slice(0,10);
+        el.className = 'day'; el.textContent = d;
+        el.dataset.date = iso;
+        el.addEventListener('click', () => {
+          if (!el.classList.contains('disabled')) el.classList.toggle('selected');
+        });
+        daysGrid.appendChild(el);
+      }
+    }
+
+    const today = new Date();
+    generateCalendar('calCurrent', today.getFullYear(), today.getMonth());
+    const nextMonthIndex = (today.getMonth() + 1) % 12;
+    const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    generateCalendar('calNext', nextYear, nextMonthIndex);
+
+    document.getElementById('submit').addEventListener('click', () => {
+      const selected = Array.from(document.querySelectorAll('.day.selected')).map(el => el.dataset.date);
+      if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
+      tg.sendData(JSON.stringify(selected));
     });
   </script>
 </body>
