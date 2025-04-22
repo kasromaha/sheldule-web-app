@@ -35,46 +35,57 @@
   <button id="submit" class="button">Отправить</button>
   <script async src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-    const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-
-    function generateCalendar(id, year, month) {
-      const cal = document.getElementById(id);
-      cal.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
-      const wd = cal.querySelector('.weekdays'); wd.innerHTML = '';
-      const daysGrid = cal.querySelector('.days'); daysGrid.innerHTML = '';
-      weekdays.forEach(d => { const el = document.createElement('div'); el.className = 'weekday'; el.textContent = d; wd.appendChild(el); });
-      const firstDay = new Date(year, month, 1).getDay();
-      let offset = (firstDay + 6) % 7; // shift to Monday=0
-      for (let i = 0; i < offset; i++) {
-        const el = document.createElement('div'); el.className = 'day disabled'; daysGrid.appendChild(el);
+    (function(){
+      // Инициализация Telegram WebApp, если запущено внутри Telegram
+      const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+      if (tg && tg.expand) {
+        tg.expand();
       }
-      const daysCount = new Date(year, month + 1, 0).getDate();
-      for (let d = 1; d <= daysCount; d++) {
-        const el = document.createElement('div');
-        const iso = new Date(year, month, d).toISOString().slice(0,10);
-        el.className = 'day'; el.textContent = d;
-        el.dataset.date = iso;
-        el.addEventListener('click', () => {
-          if (!el.classList.contains('disabled')) el.classList.toggle('selected');
-        });
-        daysGrid.appendChild(el);
+
+      const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+      const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+      function generateCalendar(id, year, month) {
+        const cal = document.getElementById(id);
+        cal.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
+        const wd = cal.querySelector('.weekdays'); wd.innerHTML = '';
+        const daysGrid = cal.querySelector('.days'); daysGrid.innerHTML = '';
+        weekdays.forEach(d => { const el = document.createElement('div'); el.className = 'weekday'; el.textContent = d; wd.appendChild(el); });
+        const firstDay = new Date(year, month, 1).getDay();
+        let offset = (firstDay + 6) % 7; // shift to Monday=0
+        for (let i = 0; i < offset; i++) {
+          const el = document.createElement('div'); el.className = 'day disabled'; daysGrid.appendChild(el);
+        }
+        const daysCount = new Date(year, month + 1, 0).getDate();
+        for (let d = 1; d <= daysCount; d++) {
+          const el = document.createElement('div');
+          const iso = new Date(year, month, d).toISOString().slice(0,10);
+          el.className = 'day'; el.textContent = d;
+          el.dataset.date = iso;
+          el.addEventListener('click', () => {
+            if (!el.classList.contains('disabled')) el.classList.toggle('selected');
+          });
+          daysGrid.appendChild(el);
+        }
       }
-    }
 
-    const today = new Date();
-    generateCalendar('calCurrent', today.getFullYear(), today.getMonth());
-    const nextMonthIndex = (today.getMonth() + 1) % 12;
-    const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
-    generateCalendar('calNext', nextYear, nextMonthIndex);
+      const today = new Date();
+      generateCalendar('calCurrent', today.getFullYear(), today.getMonth());
+      const nextMonthIndex = (today.getMonth() + 1) % 12;
+      const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+      generateCalendar('calNext', nextYear, nextMonthIndex);
 
-    document.getElementById('submit').addEventListener('click', () => {
-      const selected = Array.from(document.querySelectorAll('.day.selected')).map(el => el.dataset.date);
-      if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
-      tg.sendData(JSON.stringify(selected));
-    });
+      document.getElementById('submit').addEventListener('click', () => {
+        const selected = Array.from(document.querySelectorAll('.day.selected')).map(el => el.dataset.date);
+        if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
+        if (tg && tg.sendData) {
+          tg.sendData(JSON.stringify(selected));
+        } else {
+          console.log('Selected dates:', selected);
+          alert('Даты: ' + selected.join(', '));
+        }
+      });
+    })();
   </script>
 </body>
 </html> 
