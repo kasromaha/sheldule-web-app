@@ -77,6 +77,39 @@
       }
     }
 
+    // Функция для закрытия приложения
+    function closeWebApp() {
+      try {
+        debugLog('Попытка закрыть приложение');
+        
+        if (!tg) {
+          debugLog('Ошибка: объект Telegram WebApp не инициализирован');
+          return;
+        }
+
+        // Пробуем разные методы закрытия
+        if (typeof tg.close === 'function') {
+          debugLog('Вызов метода tg.close()');
+          tg.close();
+        }
+        
+        if (typeof tg.closeWebApp === 'function') {
+          debugLog('Вызов метода tg.closeWebApp()');
+          tg.closeWebApp();
+        }
+
+        // Если есть MainButton, скрываем её перед закрытием
+        if (tg.MainButton && typeof tg.MainButton.hide === 'function') {
+          debugLog('Скрытие MainButton перед закрытием');
+          tg.MainButton.hide();
+        }
+
+        debugLog('Все методы закрытия выполнены');
+      } catch (e) {
+        debugLog(`Ошибка при закрытии приложения: ${e.message}`);
+      }
+    }
+
     // Инициализация Telegram Web App
     function initApp() {
       try {
@@ -105,12 +138,20 @@
         if (tg.BackButton) {
           tg.BackButton.onClick(() => {
             debugLog('Нажата кнопка "Назад"');
-            tg.close();
+            closeWebApp();
           });
           debugLog('Кнопка "Назад" настроена');
         } else {
           debugLog('Внимание: BackButton недоступна');
         }
+
+        // Добавляем обработчик для кнопки отмены
+        document.getElementById('submit').addEventListener('click', () => {
+          debugLog('Нажата кнопка отправки');
+          sendSelectedDates();
+          // Закрываем приложение после успешной отправки
+          setTimeout(closeWebApp, 500);
+        });
         
         // Генерируем календари
         const today = new Date();
@@ -151,18 +192,20 @@
         }
 
         const datesArray = Array.from(selectedDates).sort();
-        debugLog('Sending dates: ' + datesArray.join(', '));
+        debugLog('Отправка дат: ' + datesArray.join(', '));
         
         if (tg && typeof tg.sendData === 'function') {
           tg.sendData(JSON.stringify(datesArray));
-          debugLog('Dates sent successfully');
+          debugLog('Даты успешно отправлены');
+          // Закрываем приложение после успешной отправки
+          setTimeout(closeWebApp, 500);
         } else {
           showError('Ошибка отправки данных');
-          debugLog('Error: tg.sendData not available');
+          debugLog('Ошибка: tg.sendData недоступен');
         }
       } catch (e) {
         showError('Ошибка при отправке дат: ' + e.message);
-        debugLog('Error sending dates: ' + e.message);
+        debugLog('Ошибка отправки дат: ' + e.message);
       }
     }
 
