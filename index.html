@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://telegram.org; script-src 'self' https://telegram.org 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
   <title>Выбор дат смен</title>
   <style>
     body { font-family: sans-serif; background-color: #f0f0f0; margin: 20px; }
@@ -17,15 +20,13 @@
     .day.selected { background: #4caf50; color: white; }
     .button { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; }
     .error { color: red; text-align: center; margin: 10px; }
-    .debug { font-size: 12px; color: #666; margin: 10px; text-align: center; }
   </style>
   <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js" crossorigin="anonymous" integrity="sha384-"></script>
 </head>
 <body>
   <h2>Выберите даты смен</h2>
   <div id="error" class="error"></div>
-  <div id="debug" class="debug"></div>
   <div class="calendar-container">
     <div class="calendar" id="calCurrent">
       <h3></h3>
@@ -42,159 +43,70 @@
   <script>
     let tg = null;
     let selectedDates = new Set();
-    let isDebugMode = true; // Включить для отладки
-    let debugLogs = []; // Массив для хранения логов
-    let debugId = Math.random().toString(36).substring(2, 10); // Уникальный ID для логов
 
-    // Функция для отправки отладочной информации в бот
-    function sendDebugToBot(message) {
+    // Инициализация Telegram Web App
+    function initApp() {
       try {
-        // Добавляем лог в массив
-        debugLogs.push(message);
+        tg = window.Telegram.WebApp;
+        tg.ready();
         
-        // Если есть tg и sendData, отправляем лог
-        if (tg && typeof tg.sendData === 'function') {
-          const debugData = {
-            type: 'debug',
-            id: debugId,
-            message: message,
-            timestamp: new Date().toISOString()
-          };
-          tg.sendData(JSON.stringify(debugData));
+        // Настройка кнопок
+        if (tg.MainButton) {
+          tg.MainButton.setText('Отправить выбранные даты');
+          tg.MainButton.onClick(sendSelectedDates);
+          tg.MainButton.show();
         }
+        
+        if (tg.BackButton) {
+          tg.BackButton.onClick(closeWebApp);
+        }
+
+        // Генерируем календари
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        
+        generateCalendar(document.getElementById('calCurrent'), today);
+        generateCalendar(document.getElementById('calNext'), nextMonth);
       } catch (e) {
-        console.error('Ошибка отправки отладочной информации:', e);
+        showError('Ошибка инициализации: ' + e.message);
       }
     }
 
-    function debugLog(message) {
-      if (isDebugMode) {
-        console.log(message);
-        const debugDiv = document.getElementById('debug');
-        debugDiv.textContent = message;
-        sendDebugToBot(message);
-      }
-    }
-
+    // Функция для отображения ошибок
     function showError(message) {
       const errorDiv = document.getElementById('error');
       errorDiv.textContent = message;
-      debugLog(`Ошибка: ${message}`);
-      setTimeout(() => errorDiv.textContent = '', 3000);
     }
 
-    function initTelegramWebApp() {
-      try {
-        debugLog('Инициализация Telegram WebApp...');
-        
-        // Проверяем наличие объекта Telegram
-        if (typeof window.Telegram === 'undefined') {
-          debugLog('Объект Telegram не найден');
-          throw new Error('Telegram WebApp SDK not available');
-        }
-        
-        // Проверяем наличие объекта WebApp
-        if (typeof window.Telegram.WebApp === 'undefined') {
-          debugLog('Объект Telegram.WebApp не найден');
-          throw new Error('Telegram WebApp SDK not available');
-        }
-        
-        tg = window.Telegram.WebApp;
-        debugLog('Telegram WebApp SDK загружен');
-        
-        // Проверяем версию SDK
-        if (tg.version) {
-          debugLog(`Версия SDK: ${tg.version}`);
-        }
-        
-        // Проверяем параметры инициализации
-        if (tg.initData) {
-          debugLog(`initData: ${JSON.stringify(tg.initData)}`);
-        }
-        
-        // Инициализация
-        tg.ready();
-        debugLog('tg.ready() вызван');
-        
-        tg.expand();
-        debugLog('tg.expand() вызван');
-        
-        // Инициализация MainButton
-        if (tg.MainButton) {
-          tg.MainButton.setText('Отправить');
-          tg.MainButton.show();
-          tg.MainButton.onClick(sendSelectedDates);
-          debugLog('MainButton инициализирован');
-        } else {
-          debugLog('MainButton не доступен');
-        }
-        
-        // Инициализация BackButton
-        if (tg.BackButton) {
-          tg.BackButton.onClick(() => {
-            debugLog('BackButton нажат');
-            if (typeof tg.close === 'function') {
-              tg.close();
-            }
-          });
-          debugLog('BackButton инициализирован');
-        } else {
-          debugLog('BackButton не доступен');
-        }
-        
-        // Проверяем доступность sendData
-        if (typeof tg.sendData !== 'function') {
-          debugLog('sendData не доступен');
-        } else {
-          debugLog('sendData доступен');
-        }
-        
-        return true;
-      } catch (error) {
-        console.error('Error initializing Telegram WebApp:', error);
-        debugLog(`Ошибка инициализации: ${error.message}`);
-        showError('Ошибка инициализации приложения');
-        return false;
-      }
-    }
-
+    // Функция отправки выбранных дат
     function sendSelectedDates() {
       try {
-        debugLog('Попытка отправки дат...');
-        
         if (selectedDates.size === 0) {
-          showError('Выберите хотя бы одну дату');
+          showError('Пожалуйста, выберите хотя бы одну дату');
           return;
         }
 
-        const dates = Array.from(selectedDates).sort();
-        debugLog(`Выбранные даты: ${dates.join(', ')}`);
-        
-        const data = JSON.stringify(dates);
-        debugLog(`Данные для отправки: ${data}`);
+        const datesArray = Array.from(selectedDates).sort();
         
         if (tg && typeof tg.sendData === 'function') {
-          debugLog('Вызов tg.sendData()');
-          tg.sendData(data);
-          debugLog('tg.sendData() вызван успешно');
-          
-          if (typeof tg.close === 'function') {
-            debugLog('Вызов tg.close()');
-            tg.close();
-          } else {
-            debugLog('tg.close() не доступен');
-          }
+          tg.sendData(JSON.stringify(datesArray));
+          setTimeout(closeWebApp, 500);
         } else {
-          throw new Error('sendData not available');
+          showError('Ошибка отправки данных');
         }
-      } catch (error) {
-        console.error('Error sending dates:', error);
-        debugLog(`Ошибка отправки: ${error.message}`);
-        showError('Ошибка отправки данных');
+      } catch (e) {
+        showError('Ошибка при отправке дат: ' + e.message);
       }
     }
 
-    // Calendar generation code
+    // Функция для закрытия приложения
+    function closeWebApp() {
+      if (tg && typeof tg.close === 'function') {
+        tg.close();
+      }
+    }
+
+    // Генерация календаря
     const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
     const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     
@@ -234,11 +146,9 @@
             if (selectedDates.has(dateString)) {
               selectedDates.delete(dateString);
               dayElement.classList.remove('selected');
-              debugLog(`Дата удалена: ${dateString}`);
             } else {
               selectedDates.add(dateString);
               dayElement.classList.add('selected');
-              debugLog(`Дата добавлена: ${dateString}`);
             }
           });
         }
@@ -247,49 +157,8 @@
       }
     }
 
-    // Проверяем, загружен ли скрипт Telegram WebApp
-    function checkTelegramScript() {
-      debugLog('Проверка загрузки скрипта Telegram WebApp...');
-      if (typeof window.Telegram === 'undefined') {
-        debugLog('Скрипт Telegram WebApp не загружен, попытка загрузки...');
-        const script = document.createElement('script');
-        script.src = 'https://telegram.org/js/telegram-web-app.js';
-        script.onload = function() {
-          debugLog('Скрипт Telegram WebApp загружен');
-          initApp();
-        };
-        script.onerror = function() {
-          debugLog('Ошибка загрузки скрипта Telegram WebApp');
-          showError('Ошибка загрузки приложения');
-        };
-        document.head.appendChild(script);
-      } else {
-        debugLog('Скрипт Telegram WebApp уже загружен');
-        initApp();
-      }
-    }
-
-    function initApp() {
-      if (!initTelegramWebApp()) {
-        return;
-      }
-
-      const today = new Date();
-      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-      
-      generateCalendar(document.getElementById('calCurrent'), today);
-      generateCalendar(document.getElementById('calNext'), nextMonth);
-      
-      // Fallback button
-      document.getElementById('submit').addEventListener('click', sendSelectedDates);
-      debugLog('Приложение инициализировано');
-    }
-
     // Запускаем приложение после загрузки DOM
-    document.addEventListener('DOMContentLoaded', () => {
-      debugLog('DOM загружен');
-      checkTelegramScript();
-    });
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
 </body>
 </html> 
