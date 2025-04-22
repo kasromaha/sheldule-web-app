@@ -17,6 +17,8 @@
     .day.selected { background: #4caf50; color: white; }
     .button { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; }
   </style>
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
 </head>
 <body>
   <h2>Выберите даты смен</h2>
@@ -33,14 +35,17 @@
     </div>
   </div>
   <button id="submit" class="button">Отправить</button>
-  <script async src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    (function(){
-      // Инициализация Telegram WebApp, если запущено внутри Telegram
-      const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-      if (tg && tg.expand) {
-        tg.expand();
+    document.addEventListener('DOMContentLoaded', () => {
+      // Убедимся, что SDK загружен
+      if (!window.Telegram || !window.Telegram.WebApp) {
+        console.warn('Telegram WebApp SDK not loaded');
+        return;
       }
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+      console.log('Web App ready');
 
       const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
       const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
@@ -76,17 +81,16 @@
       generateCalendar('calNext', nextYear, nextMonthIndex);
 
       document.getElementById('submit').addEventListener('click', () => {
-        const selected = Array.from(document.querySelectorAll('.day.selected')).map(el => el.dataset.date);
+        const selected = Array.from(document.querySelectorAll('.day.selected'))
+          .map(el => el.dataset.date);
+        console.log('Selected dates:', selected);
         if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
-        if (tg && tg.sendData) {
+        if (tg.sendData) {
           tg.sendData(JSON.stringify(selected));
-          if (tg.close) tg.close();
-        } else {
-          console.log('Selected dates:', selected);
-          alert('Даты: ' + selected.join(', '));
+          if (typeof tg.close === 'function') tg.close();
         }
       });
-    })();
+    });
   </script>
 </body>
 </html> 
