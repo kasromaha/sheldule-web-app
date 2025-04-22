@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Выбор дат смен</title>
   <style>
-    body { font-family: sans-serif; background: #ffffff; margin: 20px; }
+    body { font-family: sans-serif; background-color: #f0f0f0; margin: 20px; }
     h2 { text-align: center; }
     .calendar-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
     .calendar { width: 300px; }
@@ -32,6 +32,7 @@
       <div class="grid days"></div>
     </div>
   </div>
+  <button id="submit" class="button">Отправить</button>
   <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
@@ -54,7 +55,6 @@
         submitButton.className = 'button';
         submitButton.textContent = 'Отправить';
         document.body.appendChild(submitButton);
-        submitButton.style.display = 'none'; // Hide if using MainButton
       }
     } else {
       console.warn('Telegram WebApp SDK not available');
