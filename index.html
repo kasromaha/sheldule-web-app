@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Выбор дат смен</title>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
+    body { font-family: sans-serif; background: #ffffff; margin: 20px; }
     h2 { text-align: center; }
     .calendar-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
     .calendar { width: 300px; }
@@ -35,6 +35,8 @@
     </div>
   </div>
   <button id="submit" class="button">Отправить</button>
+  <!-- Load SDK in body to support inline WebApp contexts -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // Убедимся, что SDK загружен
