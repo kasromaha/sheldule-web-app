@@ -17,6 +17,8 @@
     .day.selected { background: #4caf50; color: white; }
     .button { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; }
   </style>
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
 </head>
 <body>
   <h2>Выберите даты смен</h2>
@@ -32,109 +34,55 @@
       <div class="grid days"></div>
     </div>
   </div>
-  <button id="submit" class="button">Отправить</button>
-  <!-- Telegram Web App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    // Initialize Telegram WebApp immediately (works for inline keyboard launch)
-    const tg = window.Telegram && window.Telegram.WebApp;
-    if (tg) {
+    document.addEventListener('DOMContentLoaded', () => {
+      const tg = window.Telegram?.WebApp;
+      if (!tg) {
+        console.error('Telegram WebApp SDK not available');
+        return;
+      }
       tg.ready();
       tg.expand();
-      console.log('WebApp initialized', tg);
-      
-      // Setup MainButton for native submit experience
-      tg.MainButton.setText('Отправить даты');
+      tg.MainButton.setText('Отправить');
       tg.MainButton.show();
-      
-      // Get or create our own submit button
-      let submitButton = document.getElementById('submit');
-      if (!submitButton) {
-        submitButton = document.createElement('button');
-        submitButton.id = 'submit';
-        submitButton.className = 'button';
-        submitButton.textContent = 'Отправить';
-        document.body.appendChild(submitButton);
-      }
-    } else {
-      console.warn('Telegram WebApp SDK not available');
-      // Show fallback button when not in Telegram
-      let submitButton = document.getElementById('submit');
-      if (!submitButton) {
-        submitButton = document.createElement('button');
-        submitButton.id = 'submit';
-        submitButton.className = 'button';
-        submitButton.textContent = 'Отправить';
-        document.body.appendChild(submitButton);
-      }
-    }
 
-    const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-    const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+      // Generate calendars
+      const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+      const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+      function generateCalendar(id, year, month) {
+        const cal = document.getElementById(id);
+        cal.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
+        const wd = cal.querySelector('.weekdays'); wd.innerHTML = '';
+        const daysGrid = cal.querySelector('.days'); daysGrid.innerHTML = '';
+        weekdays.forEach(d => { const el = document.createElement('div'); el.className='weekday'; el.textContent=d; wd.appendChild(el); });
+        const firstDay = new Date(year, month, 1).getDay();
+        let offset = (firstDay + 6) % 7;
+        for (let i = 0; i < offset; i++) { const el=document.createElement('div'); el.className='day disabled'; daysGrid.appendChild(el); }
+        const daysCount = new Date(year, month+1, 0).getDate();
+        for (let d =1; d <= daysCount; d++) {
+          const el=document.createElement('div');
+          el.className='day'; el.textContent=d;
+          el.dataset.date=new Date(year, month, d).toISOString().slice(0,10);
+          el.onclick = () => { if(!el.classList.contains('disabled')) el.classList.toggle('selected'); updateButton(); };
+          daysGrid.appendChild(el);
+        }
+      }
+      const today=new Date();
+      generateCalendar('calCurrent', today.getFullYear(), today.getMonth());
+      const nextMonth = today.getMonth() === 11 ? 0 : today.getMonth()+1;
+      const nextYear = today.getMonth() === 11 ? today.getFullYear()+1 : today.getFullYear();
+      generateCalendar('calNext', nextYear, nextMonth);
 
-    function generateCalendar(id, year, month) {
-      const cal = document.getElementById(id);
-      cal.querySelector('h3').textContent = `${monthNames[month]} ${year}`;
-      const wd = cal.querySelector('.weekdays'); wd.innerHTML = '';
-      const daysGrid = cal.querySelector('.days'); daysGrid.innerHTML = '';
-      weekdays.forEach(d => { const el = document.createElement('div'); el.className = 'weekday'; el.textContent = d; wd.appendChild(el); });
-      const firstDay = new Date(year, month, 1).getDay();
-      let offset = (firstDay + 6) % 7; // shift to Monday=0
-      for (let i = 0; i < offset; i++) {
-        const el = document.createElement('div'); el.className = 'day disabled'; daysGrid.appendChild(el);
+      function updateButton() {
+        const has = document.querySelectorAll('.day.selected').length>0;
+        tg.MainButton[has?'enable':'disable']();
       }
-      const daysCount = new Date(year, month + 1, 0).getDate();
-      for (let d = 1; d <= daysCount; d++) {
-        const el = document.createElement('div');
-        const iso = new Date(year, month, d).toISOString().slice(0,10);
-        el.className = 'day'; el.textContent = d;
-        el.dataset.date = iso;
-        el.addEventListener('click', () => {
-          if (!el.classList.contains('disabled')) el.classList.toggle('selected');
-        });
-        daysGrid.appendChild(el);
-      }
-    }
+      updateButton();
 
-    const today = new Date();
-    generateCalendar('calCurrent', today.getFullYear(), today.getMonth());
-    const nextMonthIndex = (today.getMonth() + 1) % 12;
-    const nextYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
-    generateCalendar('calNext', nextYear, nextMonthIndex);
-
-    // Send selected dates back to the bot
-    function sendSelectedDates() {
-      const selected = Array.from(document.querySelectorAll('.day.selected'))
-        .map(el => el.dataset.date);
-      console.log('Selected dates:', selected);
-      if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
-      if (tg && tg.sendData) {
-        tg.sendData(JSON.stringify(selected));
-        if (typeof tg.close === 'function') tg.close();
-      } else {
-        alert('Не удалось отправить данные: tg.sendData не доступна');
-      }
-    }
-
-    // Hook up both MainButton and our custom button
-    if (tg && tg.MainButton) {
-      tg.MainButton.onClick(sendSelectedDates);
-    }
-    
-    const submitButton = document.getElementById('submit');
-    if (submitButton) {
-      submitButton.addEventListener('click', sendSelectedDates);
-    }
-    
-    // Monitor selected dates to enable/disable buttons
-    document.addEventListener('click', () => {
-      const hasSelected = document.querySelectorAll('.day.selected').length > 0;
-      if (tg && tg.MainButton) {
-        if (hasSelected) tg.MainButton.enable(); else tg.MainButton.disable();
-      }
-      if (submitButton) {
-        submitButton.disabled = !hasSelected;
-      }
+      tg.onEvent('mainButtonClicked', () => {
+        const dates = Array.from(document.querySelectorAll('.day.selected')).map(el=>el.dataset.date);
+        tg.sendData(JSON.stringify(dates));
+      });
     });
   </script>
 </body>
