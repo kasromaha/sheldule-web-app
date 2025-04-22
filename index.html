@@ -21,7 +21,6 @@
     .button { display: block; margin: 20px auto; padding: 10px 20px; font-size: 16px; }
     .error { color: red; text-align: center; margin: 10px; }
   </style>
-  <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" crossorigin="anonymous" integrity="sha384-"></script>
 </head>
 <body>
@@ -44,7 +43,6 @@
     let tg = null;
     let selectedDates = new Set();
 
-    // Функция для активации кнопки отправки
     function updateMainButton() {
       if (selectedDates.size > 0) {
         tg.MainButton.show();
@@ -53,13 +51,36 @@
       }
     }
 
-    // Функция для отображения ошибок
+    function initApp() {
+      try {
+        tg = window.Telegram.WebApp;
+        tg.ready();
+        
+        if (tg.MainButton) {
+          tg.MainButton.setText('Отправить выбранные даты');
+          tg.MainButton.onClick(sendSelectedDates);
+          tg.MainButton.hide();
+        }
+        
+        if (tg.BackButton) {
+          tg.BackButton.onClick(closeWebApp);
+        }
+
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        
+        generateCalendar(document.getElementById('calCurrent'), today);
+        generateCalendar(document.getElementById('calNext'), nextMonth);
+      } catch (e) {
+        showError('Ошибка инициализации: ' + e.message);
+      }
+    }
+
     function showError(message) {
       const errorDiv = document.getElementById('error');
       errorDiv.textContent = message;
     }
 
-    // Функция отправки выбранных дат
     function sendSelectedDates() {
       try {
         if (selectedDates.size === 0) {
@@ -80,14 +101,12 @@
       }
     }
 
-    // Функция для закрытия приложения
     function closeWebApp() {
       if (tg && typeof tg.close === 'function') {
         tg.close();
       }
     }
 
-    // Генерация календаря
     const weekdays = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
     const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     
@@ -105,12 +124,10 @@
       const daysGrid = container.querySelector('.days');
       daysGrid.innerHTML = '';
       
-      // Add empty cells for days before the first day of the month
       for (let i = 0; i < (firstDay.getDay() || 7) - 1; i++) {
         daysGrid.appendChild(document.createElement('div'));
       }
       
-      // Add days of the month
       for (let day = 1; day <= lastDay.getDate(); day++) {
         const dayElement = document.createElement('div');
         dayElement.className = 'day';
@@ -139,36 +156,7 @@
       }
     }
 
-    // Инициализация Telegram Web App
-    function initApp() {
-      try {
-        tg = window.Telegram.WebApp;
-        tg.ready();
-        
-        // Настройка кнопок
-        if (tg.MainButton) {
-          tg.MainButton.setText('Отправить выбранные даты');
-          tg.MainButton.onClick(sendSelectedDates);
-          tg.MainButton.hide(); // Скрываем кнопку до выбора дат
-        }
-        
-        if (tg.BackButton) {
-          tg.BackButton.onClick(closeWebApp);
-        }
-
-        // Генерируем календари
-        const today = new Date();
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        
-        generateCalendar(document.getElementById('calCurrent'), today);
-        generateCalendar(document.getElementById('calNext'), nextMonth);
-      } catch (e) {
-        showError('Ошибка инициализации: ' + e.message);
-      }
-    }
-
-    // Запускаем приложение после загрузки DOM
     document.addEventListener('DOMContentLoaded', initApp);
   </script>
 </body>
-</html> 
+</html>
