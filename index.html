@@ -89,6 +89,7 @@
       if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
       if (tg && tg.sendData) {
         tg.sendData(JSON.stringify(selected));
+        if (typeof tg.close === 'function') tg.close();
       } else {
         alert('Не удалось отправить данные: tg.sendData не доступна');
       }
