@@ -80,6 +80,7 @@
         if (!selected.length) { alert('Выберите хотя бы одну дату.'); return; }
         if (tg && tg.sendData) {
           tg.sendData(JSON.stringify(selected));
+          if (tg.close) tg.close();
         } else {
           console.log('Selected dates:', selected);
           alert('Даты: ' + selected.join(', '));
