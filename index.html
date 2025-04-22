@@ -44,31 +44,12 @@
     let tg = null;
     let selectedDates = new Set();
 
-    // Инициализация Telegram Web App
-    function initApp() {
-      try {
-        tg = window.Telegram.WebApp;
-        tg.ready();
-        
-        // Настройка кнопок
-        if (tg.MainButton) {
-          tg.MainButton.setText('Отправить выбранные даты');
-          tg.MainButton.onClick(sendSelectedDates);
-          tg.MainButton.show();
-        }
-        
-        if (tg.BackButton) {
-          tg.BackButton.onClick(closeWebApp);
-        }
-
-        // Генерируем календари
-        const today = new Date();
-        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        
-        generateCalendar(document.getElementById('calCurrent'), today);
-        generateCalendar(document.getElementById('calNext'), nextMonth);
-      } catch (e) {
-        showError('Ошибка инициализации: ' + e.message);
+    // Функция для активации кнопки отправки
+    function updateMainButton() {
+      if (selectedDates.size > 0) {
+        tg.MainButton.show();
+      } else {
+        tg.MainButton.hide();
       }
     }
 
@@ -150,10 +131,39 @@
               selectedDates.add(dateString);
               dayElement.classList.add('selected');
             }
+            updateMainButton();
           });
         }
         
         daysGrid.appendChild(dayElement);
+      }
+    }
+
+    // Инициализация Telegram Web App
+    function initApp() {
+      try {
+        tg = window.Telegram.WebApp;
+        tg.ready();
+        
+        // Настройка кнопок
+        if (tg.MainButton) {
+          tg.MainButton.setText('Отправить выбранные даты');
+          tg.MainButton.onClick(sendSelectedDates);
+          tg.MainButton.hide(); // Скрываем кнопку до выбора дат
+        }
+        
+        if (tg.BackButton) {
+          tg.BackButton.onClick(closeWebApp);
+        }
+
+        // Генерируем календари
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        
+        generateCalendar(document.getElementById('calCurrent'), today);
+        generateCalendar(document.getElementById('calNext'), nextMonth);
+      } catch (e) {
+        showError('Ошибка инициализации: ' + e.message);
       }
     }
 
