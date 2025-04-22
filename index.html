@@ -136,10 +136,7 @@
         }
         
         if (tg.BackButton) {
-          tg.BackButton.onClick(() => {
-            debugLog('Нажата кнопка "Назад"');
-            closeWebApp();
-          });
+          tg.BackButton.onClick(closeWebApp);  // Прямая передача функции
           debugLog('Кнопка "Назад" настроена');
         } else {
           debugLog('Внимание: BackButton недоступна');
@@ -149,8 +146,10 @@
         document.getElementById('submit').addEventListener('click', () => {
           debugLog('Нажата кнопка отправки');
           sendSelectedDates();
-          // Закрываем приложение после успешной отправки
-          setTimeout(closeWebApp, 500);
+          // Используем функцию обратного вызова вместо строки
+          setTimeout(() => {
+            closeWebApp();
+          }, 500);
         });
         
         // Генерируем календари
@@ -197,8 +196,10 @@
         if (tg && typeof tg.sendData === 'function') {
           tg.sendData(JSON.stringify(datesArray));
           debugLog('Даты успешно отправлены');
-          // Закрываем приложение после успешной отправки
-          setTimeout(closeWebApp, 500);
+          // Используем функцию обратного вызова вместо строки
+          setTimeout(() => {
+            closeWebApp();
+          }, 500);
         } else {
           showError('Ошибка отправки данных');
           debugLog('Ошибка: tg.sendData недоступен');
