@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Выбор дат смен</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
 </head>
 <body>
   <h2>Выберите даты смен</h2>
-  <input id="datepicker" type="text" placeholder="Нажмите, чтобы выбрать даты" style="width: 100%; padding: 0.5em; font-size: 1em;">
-  <button id="submit" style="margin-top: 1em; padding: 0.5em 1em; font-size: 1em;">Отправить</button>
+  <input id="datepicker" type="text" placeholder="Нажмите для выбора дат" style="width:100%;padding:0.5em;font-size:1em;" readonly>
+  <button id="submit" style="margin-top:1em;padding:0.5em 1em;font-size:1em;">Отправить</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"></script>
   <script async src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     // Инициализация Telegram Web App
@@ -19,16 +20,17 @@
     tg.expand();
 
     // Настройка flatpickr для множественного выбора дат
-    flatpickr("#datepicker", {
+    const fp = flatpickr("#datepicker", {
       mode: "multiple",
-      dateFormat: "Y-m-d",
-      inline: true
+      dateFormat: "Y-m-d"
     });
 
     document.getElementById("submit").addEventListener("click", () => {
-      // Получаем выбранные даты и отправляем боту
-      const raw = document.getElementById("datepicker").value;
-      const dates = raw.split(", ").filter(d => d);
+      const dates = fp.selectedDates.map(d => d.toISOString().slice(0,10));
+      if (!dates.length) {
+        alert("Выберите хотя бы одну дату.");
+        return;
+      }
       tg.sendData(JSON.stringify(dates));
     });
   </script>
